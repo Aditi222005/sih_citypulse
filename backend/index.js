@@ -1,4 +1,4 @@
-// File: index.js (Corrected)
+// File: backend/index.js
 
 // Load environment variables FIRST
 const dotenv = require('dotenv');
@@ -25,4 +25,5 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/api/auth', authRoutes);
 app.use('/api/issues', issueRoutes);
 
-module.exports = app; 
+// Export the app for Vercel's serverless environment
+module.exports = app;
