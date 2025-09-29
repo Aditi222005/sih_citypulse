@@ -1,9 +1,8 @@
 import axios from 'axios';
 
-// Create an Axios instance
+// Create an Axios instance with a relative baseURL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  // The 'Content-Type' header has been removed from here
+  baseURL: '/api',
 });
 
 // Add a request interceptor to include the token in every request
