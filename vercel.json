@@ -20,7 +20,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "frontend/dist/$1"
+      "dest": "citizen/dist/$1"
     }
   ]
 }
