@@ -1,5 +1,3 @@
-// File: backend/index.js
-
 // Load environment variables FIRST
 const dotenv = require('dotenv');
 dotenv.config();
