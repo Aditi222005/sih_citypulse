@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useReducer, useEffect } from "react"
+import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react"
+// Note: You might need to install react-router-dom if you haven't already
 import { useNavigate } from "react-router-dom"
 import api from "@/api/axiosConfig"
 
-// Interfaces like User, AuthState, RegisterData etc. remain the same...
+// --- Interfaces ---
 interface User {
   id: string
   firstName: string
@@ -30,22 +31,11 @@ interface AuthState {
   error: string | null
 }
 
-// --- FIX #1: Update the type definition for the register function ---
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>
-  register: (userData: FormData) => Promise<any> // Changed from RegisterData to FormData
+  register: (userData: FormData) => Promise<any>
   logout: () => void
   clearError: () => void
-}
-
-interface RegisterData {
-  firstName: string
-  lastName: string
-  email: string
-  password: string
-  confirmPassword: string
-  phone?: string
-  avatar?: any
 }
 
 type AuthAction =
@@ -56,11 +46,12 @@ type AuthAction =
   | { type: "CLEAR_ERROR" }
   | { type: "SET_LOADING"; payload: boolean }
 
+// --- Initial State and Reducer ---
 const initialState: AuthState = {
   user: null,
   token: localStorage.getItem("token"),
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: true, // Start with loading true to check token
   error: null,
 }
 
@@ -78,8 +69,12 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         error: null,
       }
     case "AUTH_FAILURE":
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
       return { ...state, isLoading: false, isAuthenticated: false, user: null, token: null, error: action.payload }
     case "LOGOUT":
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
       return { ...state, isAuthenticated: false, user: null, token: null, error: null }
     case "CLEAR_ERROR":
       return { ...state, error: null }
@@ -90,9 +85,10 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   }
 }
 
+// --- Context and Provider ---
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState)
   const navigate = useNavigate()
 
@@ -105,14 +101,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        const response = await api.get("/auth/me")
+        // *** FIX #1: Corrected API path for fetching user data ***
+        const response = await api.get("/api/auth/me")
         dispatch({
           type: "AUTH_SUCCESS",
-          payload: { user: response.data.user, token },
+          payload: { user: response.data.user || response.data, token },
         })
       } catch (error) {
-        localStorage.removeItem("token")
-        localStorage.removeItem("refreshToken")
         dispatch({ type: "LOGOUT" })
       } finally {
         dispatch({ type: "SET_LOADING", payload: false })
@@ -124,14 +119,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     dispatch({ type: "AUTH_START" })
     try {
-      const response = await api.post("/auth/login", { email, password })
+      // *** FIX #2: Corrected API path for login ***
+      const response = await api.post("/api/auth/login", { email, password })
       const { user, token, refreshToken } = response.data
 
       localStorage.setItem("token", token)
-      localStorage.setItem("refreshToken", refreshToken)
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken)
+      }
 
       dispatch({ type: "AUTH_SUCCESS", payload: { user, token } })
-      navigate("/")
+      navigate("/") // Redirect to home on successful login
     } catch (error: any) {
       const message = error.response?.data?.message || "Network error. Please try again."
       dispatch({ type: "AUTH_FAILURE", payload: message })
@@ -139,12 +137,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
-  // --- FIX #2: Update the function to accept FormData ---
-  const register = async (userData: FormData) => { // Changed from RegisterData
+  const register = async (userData: FormData) => {
     dispatch({ type: "AUTH_START" })
     try {
-      // Axios will automatically set the correct 'Content-Type' header
-      const response = await api.post("/auth/register", userData)
+      // *** FIX #3: Corrected API path for registration ***
+      const response = await api.post("/api/auth/register", userData)
+      // On successful registration, you might want to log the user in
+      // or simply return the success message.
       dispatch({ type: "SET_LOADING", payload: false })
       return response.data
     } catch (error: any) {
@@ -155,8 +154,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const logout = () => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("refreshToken")
     dispatch({ type: "LOGOUT" })
     navigate("/login")
   }
@@ -183,3 +180,4 @@ export const useAuth = () => {
   }
   return context
 }
+
